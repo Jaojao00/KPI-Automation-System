@@ -1495,7 +1495,7 @@ app.post('/api/export-check-report', (req, res) => {
     res.send(buffer);
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`KPI System backend running at http://localhost:${PORT}`);
     console.log(`Lưu ý: Để truy cập từ máy khác trong cùng mạng LAN/WiFi, hãy tìm địa chỉ IPv4 của máy này (vd: 192.168.1.x) và truy cập http://192.168.1.x:${PORT}`);
