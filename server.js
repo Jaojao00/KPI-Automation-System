@@ -3,6 +3,11 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const xlsx = require('xlsx');
+const fs = require('fs');
+
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+}
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
