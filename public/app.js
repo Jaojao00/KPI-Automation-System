@@ -50,8 +50,10 @@ createApp({
             _monthAutoDetected: false,
             systemConfig: {
                 target_total_cong: 26,
-                target_mini: 6,
-                target_cp: 5,
+                target_mini_min: 4,
+                target_mini_max: 6,
+                target_cp_min: 4,
+                target_cp_max: 5,
                 cpDays: [4, 5, 6, 7, 8],
                 miniDays: [1, 2, 15, 16, 25, 26]
             },
@@ -128,31 +130,53 @@ createApp({
                 });
             }
             return data.map(row => {
-                let work = 0;
-                let off = 0;
-                let workDaysList = [];
                 let offDaysList = [];
-                if (this.scheduleData.headers) {
-                    this.scheduleData.headers.forEach(h => {
-                        // Assuming day columns are short strings like "Wed 1", "Thu 2" and not one of the standard headers
-                        if (h !== '__EMPTY' && !h.includes('Công thức') && !h.includes('Mã số') && !h.includes('Vendor')) {
-                            const val = (row[h] || '').toString().toUpperCase().trim();
-                            
-                            // Extract day number from header, e.g. "Wed 1" -> "1"
-                            const dayMatch = h.match(/\d+/);
-                            const dayStr = dayMatch ? dayMatch[0] : h;
+                let workDaysList = [];
+                
+                const keys = Object.keys(row);
+                const offDaysKey = keys.find(k => k.match(/lịch off/i));
+                const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
+                const cpOffKey = keys.find(k => k.match(/trong cp/i));
 
-                            if (val === 'OFF') {
-                                off++;
-                                offDaysList.push(dayStr);
-                            } else if (val !== '' && !['AL', 'SL', 'U', 'N'].includes(val)) {
-                                work++;
-                                workDaysList.push({ day: dayStr, shift: val });
-                            }
-                        }
+                const parseDays = (val) => {
+                    const days = new Set();
+                    if (!val) return days;
+                    const parts = String(val).split(/[,.]+/);
+                    parts.forEach(p => {
+                        const num = parseInt(p.trim());
+                        if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
                     });
+                    return days;
+                };
+
+                const scheduledOff = parseDays(offDaysKey ? row[offDaysKey] : '');
+                const approvedLeave = parseDays(opsDuyetPhepKey ? row[opsDuyetPhepKey] : '');
+                const cpOff = parseDays(cpOffKey ? row[cpOffKey] : '');
+
+                // Add to offDaysList
+                scheduledOff.forEach(d => offDaysList.push(d));
+                cpOff.forEach(d => { if (!offDaysList.includes(d)) offDaysList.push(d); });
+                approvedLeave.forEach(d => { if (!offDaysList.includes(d)) offDaysList.push(d + ' (AL)'); });
+
+                // Since we don't have explicit work days in the columns, we assume 1-31 minus off days are work days
+                // Only populate workDaysList up to 31
+                for (let d = 1; d <= 31; d++) {
+                    if (!scheduledOff.has(d) && !cpOff.has(d) && !approvedLeave.has(d)) {
+                        workDaysList.push({ day: d, shift: 'WORKING' });
+                    }
                 }
-                return { ...row, _totalWork: work, _totalOff: off, _workDaysList: workDaysList, _offDaysList: offDaysList };
+
+                // Sort for display
+                offDaysList.sort((a, b) => parseInt(a) - parseInt(b));
+                workDaysList.sort((a, b) => a.day - b.day);
+
+                return { 
+                    ...row, 
+                    _totalWork: workDaysList.length, 
+                    _totalOff: offDaysList.length, 
+                    _workDaysList: workDaysList, 
+                    _offDaysList: offDaysList 
+                };
             });
         },
         // Check Report computed
@@ -239,8 +263,16 @@ createApp({
             const cfg = this.systemConfig;
             return {
                 total: { current: kpi.total_ngay_cong, target: cfg.target_total_cong, pct: Math.min(100, Math.round((kpi.total_ngay_cong / cfg.target_total_cong) * 100)) },
-                cp: { current: kpi.total_ngay_cong_cp, target: cfg.target_cp, pct: Math.min(100, Math.round((kpi.total_ngay_cong_cp / cfg.target_cp) * 100)) },
-                mini: { current: kpi.total_ngay_cong_mini, target: cfg.target_mini, pct: Math.min(100, Math.round((kpi.total_ngay_cong_mini / cfg.target_mini) * 100)) },
+                cp: { 
+                    current: kpi.total_ngay_cong_cp, 
+                    target: `${cfg.target_cp_min}-${cfg.target_cp_max}`, 
+                    pct: Math.min(100, Math.round((kpi.total_ngay_cong_cp / cfg.target_cp_max) * 100)) 
+                },
+                mini: { 
+                    current: kpi.total_ngay_cong_mini, 
+                    target: `${cfg.target_mini_min}-${cfg.target_mini_max}`, 
+                    pct: Math.min(100, Math.round((kpi.total_ngay_cong_mini / cfg.target_mini_max) * 100)) 
+                },
                 vipham: kpi.vi_pham,
                 nghikp: kpi.no_permission_leave
             };

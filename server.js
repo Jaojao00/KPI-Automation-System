@@ -3,11 +3,6 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const xlsx = require('xlsx');
-const fs = require('fs');
-
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
-}
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -33,8 +28,10 @@ const db = {
     uploadHistory: [], // { id, type, originalName, filename, month, year, recordCount, timestamp }
     config: {
         target_total_cong: 26,
-        target_mini: 6,
-        target_cp: 5,
+        target_mini_min: 4,
+        target_mini_max: 6,
+        target_cp_min: 4,
+        target_cp_max: 5,
         miniDays: [1, 2, 15, 16, 25, 26],
         cpDays: [4, 5, 6, 7, 8],
         template_timesheet: '',
@@ -167,43 +164,77 @@ function calculateKPI(ops_id, month, year) {
     });
 
     if (scheduleRow) {
-        const scheduleKeys = Object.keys(scheduleRow);
-        const workShifts = ['S19', 'S10', 'S3'];
-        // Keywords to skip (non-day columns)
-        const nonDayPattern = /rank|trạng thái|công thức|vendor|loại|mã|tên|name|id|ops|đối tác|ghi chú|note/i;
+        const keys = Object.keys(scheduleRow);
+        
+        // Find columns containing off days and approved leaves
+        const offDaysKey = keys.find(k => k.match(/lịch off/i));
+        const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
+        const cpOffKey = keys.find(k => k.match(/trong cp/i));
 
-        scheduleKeys.forEach(key => {
-            // Skip non-day columns
-            if (nonDayPattern.test(key)) return;
+        // Helper to parse comma separated days into a Set of numbers
+        const parseDays = (val) => {
+            const days = new Set();
+            if (!val) return days;
+            const parts = String(val).split(/[,.]+/); // Handle comma or dot separators
+            parts.forEach(p => {
+                const num = parseInt(p.trim());
+                if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
+            });
+            return days;
+        };
 
-            // Extract day number from column header (e.g., "Wed 1" → 1, "Mon 13" → 13, "1" → 1)
-            const dayMatch = key.match(/(\d{1,2})/);
-            if (!dayMatch) return;
-            const dayNum = parseInt(dayMatch[1]);
-            if (dayNum < 1 || dayNum > 31) return;
+        const scheduledOffDays = parseDays(offDaysKey ? scheduleRow[offDaysKey] : '');
+        const approvedLeaveDays = parseDays(opsDuyetPhepKey ? scheduleRow[opsDuyetPhepKey] : '');
+        const cpOffDays = parseDays(cpOffKey ? scheduleRow[cpOffKey] : '');
 
-            const scheduledShift = String(scheduleRow[key]).trim().toUpperCase();
+        // Find the maximum date in the overall timesheet data for this month to avoid penalizing future days
+        let maxDayInTimesheet = 31;
+        const allAttendanceThisMonth = db.attendance.filter(a => {
+            const d = new Date(a.date);
+            return d.getMonth() + 1 === parseInt(month) && d.getFullYear() === parseInt(year);
+        });
+        if (allAttendanceThisMonth.length > 0) {
+            maxDayInTimesheet = Math.max(...allAttendanceThisMonth.map(a => new Date(a.date).getDate()));
+        } else {
+            maxDayInTimesheet = new Date(year, month, 0).getDate(); // last day of month
+        }
 
-            // If scheduled to WORK (S3, S10, S19) but NO attendance record for that day
-            if (workShifts.includes(scheduledShift)) {
+        // Determine if there is any day where employee was absent but supposed to work
+        for (let dayNum = 1; dayNum <= maxDayInTimesheet; dayNum++) {
+            // Check if this day is within the current month/year (to avoid checking non-existent dates like Feb 30)
+            const checkDate = new Date(year, month - 1, dayNum);
+            if (checkDate.getMonth() + 1 !== parseInt(month)) continue; // Skip invalid dates in the month
+
+            const isScheduledOff = scheduledOffDays.has(dayNum) || cpOffDays.has(dayNum);
+            const isApprovedLeave = approvedLeaveDays.has(dayNum);
+            
+            // If they are scheduled to work (not OFF and not Approved Leave)
+            if (!isScheduledOff && !isApprovedLeave) {
                 const dayRecord = attendanceDayMap[dayNum];
                 if (!dayRecord) {
-                    // Scheduled to work but completely absent → nghỉ không phép
+                    // Supposed to work but no attendance record -> nghỉ không phép
                     no_permission_leave += 1;
                 } else if (!dayRecord.worked && dayRecord.status !== 'AL') {
-                    // Has record but didn't actually work (and not approved leave)
-                    // Already counted via NPL/HỦY above, skip duplicate
+                    // Has record but didn't actually work and it's not approved leave
+                    // (Already handled in NPL/HỦY check above if it was recorded as NPL, so we avoid double counting if possible)
+                    // If status is OFF or N/A but not AL, and not scheduled off...
+                    if (dayRecord.status === 'OFF') {
+                        // Supposed to work but recorded as OFF -> NPL
+                        no_permission_leave += 1;
+                    }
                 }
             }
-        });
+        }
     }
 
     // 6. KPI RESULT logic
     let result = 'FAIL';
     if (
         total_ngay_cong >= db.config.target_total_cong &&
-        total_ngay_cong_cp >= db.config.target_cp &&
-        total_ngay_cong_mini >= db.config.target_mini &&
+        total_ngay_cong_cp >= db.config.target_cp_min &&
+        total_ngay_cong_cp <= db.config.target_cp_max &&
+        total_ngay_cong_mini >= db.config.target_mini_min &&
+        total_ngay_cong_mini <= db.config.target_mini_max &&
         vi_pham === 0 &&
         no_permission_leave === 0
     ) {
@@ -584,7 +615,7 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
                 const name_key = keys.find(k => k.match(/họ và tên|tên|name/i));
 
                 let vendor_key = keys.find(k => k.match(/vendor|đối tác/i));
-                let type_key = keys.find(k => k.match(/loại/i)); // 'loại', 'Loại'
+                let type_key = keys.find(k => k.match(/loại|rank/i)); // Match 'loại' or 'Rank'
 
                 let ops_id = ops_id_key ? String(row[ops_id_key]).trim() : null;
                 let name = name_key ? String(row[name_key]).trim() : '';
@@ -709,8 +740,8 @@ app.get('/api/download-template/schedule', (req, res) => {
 
     // Fallback tạo file tự động
     const ws_data = [
-        ['Vendor', 'Mã NV', 'Họ Tên', 'Ngày', 'Lịch Dự Kiến', 'Ghi chú'], // Headers
-        ['Vendor B', 'OPS34169', 'Trần Thị B', '01/04/2026', 'S10', 'Ví dụ mẫu'] // Example row
+        ['Mã số nhân viên', 'Vendor', 'Họ và tên', 'Giới tính', 'Rank', 'Khu vực', 'Bộ phận', 'Tên Hub/SOC', 'Lịch Off Sắp ban đầu', 'OPS Duyệt Phép', 'Ngày Off Trong CP và Duyệt Phép trong CP'], // Headers
+        ['Ops193039', 'AGR', 'Nguyễn Thanh Bảo Long', 'Nam', 'S-BPO', 'SOUTH', 'SOC', 'SW SOC', '8, 15, 22, 29', '12, 13', '15'] // Example row
     ];
     const ws = xlsx.utils.aoa_to_sheet(ws_data);
     const wb = xlsx.utils.book_new();
@@ -1412,36 +1443,35 @@ app.get('/api/employee-timesheet/:ops_id', (req, res) => {
 
     if (scheduleRow) {
         const keys = Object.keys(scheduleRow);
-        const nonDayPattern = /rank|trạng thái|công thức|vendor|loại|mã|tên|name|id|ops|đối tác|ghi chú|note|stt|no\b/i;
+        const offDaysKey = keys.find(k => k.match(/lịch off/i));
+        const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
+        const cpOffKey = keys.find(k => k.match(/trong cp/i));
 
-        keys.forEach(key => {
-            if (nonDayPattern.test(key)) return;
+        const parseDays = (val) => {
+            const days = new Set();
+            if (!val) return days;
+            const parts = String(val).split(/[,.]+/);
+            parts.forEach(p => {
+                const num = parseInt(p.trim());
+                if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
+            });
+            return days;
+        };
 
-            let dayNum = null;
+        const scheduledOffDays = parseDays(offDaysKey ? scheduleRow[offDaysKey] : '');
+        const approvedLeaveDays = parseDays(opsDuyetPhepKey ? scheduleRow[opsDuyetPhepKey] : '');
+        const cpOffDays = parseDays(cpOffKey ? scheduleRow[cpOffKey] : '');
 
-            // Try "Wed 1", "Mon 13" format
-            const weekdayMatch = key.match(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|T2|T3|T4|T5|T6|T7|CN)\s+(\d{1,2})$/i);
-            if (weekdayMatch) dayNum = parseInt(weekdayMatch[1]);
-
-            // Try pure number "1", "13"
-            if (dayNum === null) {
-                const pureNum = key.trim().match(/^(\d{1,2})$/);
-                if (pureNum) dayNum = parseInt(pureNum[1]);
+        // Populate scheduleDays for frontend
+        for (let dayNum = 1; dayNum <= 31; dayNum++) {
+            if (scheduledOffDays.has(dayNum) || cpOffDays.has(dayNum)) {
+                scheduleDays[dayNum] = 'OFF';
+            } else if (approvedLeaveDays.has(dayNum)) {
+                scheduleDays[dayNum] = 'AL';
+            } else {
+                scheduleDays[dayNum] = 'WORKING'; // Assume working if not off
             }
-
-            // Try "Ngày 5" format
-            if (dayNum === null) {
-                const ngayMatch = key.match(/ngày\s*(\d{1,2})/i);
-                if (ngayMatch) dayNum = parseInt(ngayMatch[1]);
-            }
-
-            if (dayNum === null || dayNum < 1 || dayNum > 31) return;
-
-            const scheduled = String(scheduleRow[key]).trim().toUpperCase();
-            if (scheduled) {
-                scheduleDays[dayNum] = scheduled;
-            }
-        });
+        }
     }
 
     res.json({ records, scheduleDays });
@@ -1500,7 +1530,7 @@ app.post('/api/export-check-report', (req, res) => {
     res.send(buffer);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`KPI System backend running at http://localhost:${PORT}`);
     console.log(`Lưu ý: Để truy cập từ máy khác trong cùng mạng LAN/WiFi, hãy tìm địa chỉ IPv4 của máy này (vd: 192.168.1.x) và truy cập http://192.168.1.x:${PORT}`);

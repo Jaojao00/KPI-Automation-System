@@ -318,11 +318,11 @@
                                     </div>
                                     <div class="si-item">
                                         <span class="si-label">Ngày Mini Camp</span>
-                                        <span class="si-value si-badge">{{ systemConfig.target_mini }} ngày</span>
+                                        <span class="si-value si-badge">{{ systemConfig.target_mini_min }} - {{ systemConfig.target_mini_max }} ngày</span>
                                     </div>
                                     <div class="si-item">
                                         <span class="si-label">Ngày Campaign</span>
-                                        <span class="si-value si-badge">{{ systemConfig.target_cp }} ngày</span>
+                                        <span class="si-value si-badge">{{ systemConfig.target_cp_min }} - {{ systemConfig.target_cp_max }} ngày</span>
                                     </div>
                                     <div class="si-item">
                                         <span class="si-label">Lịch Làm Việc</span>
@@ -404,8 +404,8 @@
                                                 :class="['badge', emp.loai_ctv === 'S-BPO' ? 'badge-warning' : 'badge-default']">{{
                                                 emp.loai_ctv || 'BPO' }}</span></td>
                                         <td>{{ emp.kpi?.total_ngay_cong }}/{{ systemConfig.target_total_cong }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_cp }}/{{ systemConfig.target_cp }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_mini }}/{{ systemConfig.target_mini }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_cp }}/{{ systemConfig.target_cp_min }}-{{ systemConfig.target_cp_max }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_mini }}/{{ systemConfig.target_mini_min }}-{{ systemConfig.target_mini_max }}</td>
                                         <td>{{ emp.kpi?.vi_pham }}</td>
                                         <td :class="{'text-danger font-bold': emp.kpi?.no_permission_leave > 0}">{{
                                             emp.kpi?.no_permission_leave }}</td>
@@ -445,8 +445,8 @@
                         </button>
                     </div>
 
-                    <div class="card">
-                        <div class="table-container">
+                    <div class="card table-container">
+                        <div class="table-responsive">
                             <table class="data-table">
                                 <thead>
                                     <tr>
@@ -476,8 +476,8 @@
                                                 :class="['badge', emp.loai_ctv === 'S-BPO' ? 'badge-warning' : 'badge-default']">{{
                                                 emp.loai_ctv || 'BPO' }}</span></td>
                                         <td>{{ emp.kpi?.total_ngay_cong }}/{{ systemConfig.target_total_cong }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_mini }}/{{ systemConfig.target_mini }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_cp }}/{{ systemConfig.target_cp }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_mini }}/{{ systemConfig.target_mini_min }}-{{ systemConfig.target_mini_max }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_cp }}/{{ systemConfig.target_cp_min }}-{{ systemConfig.target_cp_max }}</td>
                                         <td>{{ emp.kpi?.vi_pham }}</td>
                                         <td :class="{'text-danger font-bold': emp.kpi?.no_permission_leave > 0}">{{
                                             emp.kpi?.no_permission_leave }}</td>
@@ -1135,16 +1135,20 @@
                                 <div>
                                     <label
                                         style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">Số
-                                        ngày CP (yêu cầu):</label>
-                                    <input type="number" v-model="systemConfig.target_cp" class="form-input"
-                                        style="width: 150px;">
+                                        ngày CP (tối thiểu - tối đa):</label>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <input type="number" v-model="systemConfig.target_cp_min" class="form-input" style="width: 70px;" title="Tối thiểu">
+                                        <input type="number" v-model="systemConfig.target_cp_max" class="form-input" style="width: 70px;" title="Tối đa">
+                                    </div>
                                 </div>
                                 <div>
                                     <label
                                         style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">Số
-                                        ngày Mini (yêu cầu):</label>
-                                    <input type="number" v-model="systemConfig.target_mini" class="form-input"
-                                        style="width: 150px;">
+                                        ngày Mini (tối thiểu - tối đa):</label>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <input type="number" v-model="systemConfig.target_mini_min" class="form-input" style="width: 70px;" title="Tối thiểu">
+                                        <input type="number" v-model="systemConfig.target_mini_max" class="form-input" style="width: 70px;" title="Tối đa">
+                                    </div>
                                 </div>
                                 <div style="margin-top: auto;">
                                     <button class="btn-primary" @click="updateSystemConfig">
@@ -1336,11 +1340,17 @@
                                     </div>
                                     <div class="cr-kpi-input-group">
                                         <label>Ngày CP:</label>
-                                        <input type="number" v-model="systemConfig.target_cp" class="form-input" style="width:80px;">
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" v-model="systemConfig.target_cp_min" class="form-input" style="width:50px;">
+                                            <input type="number" v-model="systemConfig.target_cp_max" class="form-input" style="width:50px;">
+                                        </div>
                                     </div>
                                     <div class="cr-kpi-input-group">
                                         <label>Ngày Mini:</label>
-                                        <input type="number" v-model="systemConfig.target_mini" class="form-input" style="width:80px;">
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" v-model="systemConfig.target_mini_min" class="form-input" style="width:50px;">
+                                            <input type="number" v-model="systemConfig.target_mini_max" class="form-input" style="width:50px;">
+                                        </div>
                                     </div>
                                     <button class="btn-primary" @click="updateSystemConfig" style="padding:0.4rem 0.8rem;font-size:0.82rem;">
                                         <i class='bx bx-save'></i> Lưu & Tính lại
@@ -1578,8 +1588,8 @@
                                         <td>{{ emp.name }}</td>
                                         <td>{{ emp.vendor }}</td>
                                         <td>{{ emp.kpi?.total_ngay_cong || 0 }}/{{ systemConfig.target_total_cong }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_cp || 0 }}/{{ systemConfig.target_cp }}</td>
-                                        <td>{{ emp.kpi?.total_ngay_cong_mini || 0 }}/{{ systemConfig.target_mini }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_cp || 0 }}/{{ systemConfig.target_cp_min }}-{{ systemConfig.target_cp_max }}</td>
+                                        <td>{{ emp.kpi?.total_ngay_cong_mini || 0 }}/{{ systemConfig.target_mini_min }}-{{ systemConfig.target_mini_max }}</td>
                                         <td>{{ emp.kpi?.vi_pham || 0 }}</td>
                                         <td :class="{'text-danger font-bold': emp.kpi?.no_permission_leave > 0}">{{ emp.kpi?.no_permission_leave || 0 }}</td>
                                         <td><span :class="['badge', emp.kpi?.result === 'PASS' ? 'badge-success' : 'badge-danger']">{{ emp.kpi?.result || 'N/A' }}</span></td>
