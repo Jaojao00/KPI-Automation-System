@@ -1262,7 +1262,7 @@ app.get('/api/absence-check', (req, res) => {
 
     const results = Object.values(grouped).map(g => {
         g.days.sort((a, b) => a.day - b.day);
-        const formattedDates = g.days.map(d => `${displayYear},${displayMonth},${String(d.day).padStart(2, '0')}`);
+        const formattedDates = g.days.map(d => d.day);
         return {
             ops_id: g.ops_id,
             name: g.name,
@@ -1306,11 +1306,11 @@ app.post('/api/export-absence', (req, res) => {
             ).sort((a, b) => a.day - b.day);
 
             if (offOnCpDays.length > 0) {
-                const dates = offOnCpDays.map(d => `${year},${mm},${String(d.day).padStart(2, '0')}`);
+                const dates = offOnCpDays.map(d => d.day);
                 feedbackParts.push(`Ngày OFF được sắp lịch rơi vào CP: ${dates.join(', ')}`);
             }
             if (offOnMiniDays.length > 0) {
-                const dates = offOnMiniDays.map(d => `${year},${mm},${String(d.day).padStart(2, '0')}`);
+                const dates = offOnMiniDays.map(d => d.day);
                 feedbackParts.push(`Ngày OFF được sắp lịch rơi vào mini CP: ${dates.join(', ')}`);
             }
 
@@ -1321,7 +1321,7 @@ app.post('/api/export-absence', (req, res) => {
             ).sort((a, b) => a.day - b.day);
 
             if (requestedOffDays.length > 0) {
-                const dates = requestedOffDays.map(d => `${year},${mm},${String(d.day).padStart(2, '0')}`);
+                const dates = requestedOffDays.map(d => d.day);
                 feedbackParts.push(`Ngày xin OFF do NV tự chọn: ${dates.join(', ')}`);
             }
 
@@ -1339,7 +1339,7 @@ app.post('/api/export-absence', (req, res) => {
                     .forEach(([day, reason]) => {
                         if (!otherReasonGroups[reason]) otherReasonGroups[reason] = [];
                         const dd = String(day).padStart(2, '0');
-                        otherReasonGroups[reason].push(`${year},${mm},${dd}`);
+                        otherReasonGroups[reason].push(d.day);
                     });
                 Object.entries(otherReasonGroups).forEach(([reason, dates]) => {
                     feedbackParts.push(`${reason}: ${dates.join(', ')}`);
@@ -1366,7 +1366,7 @@ app.post('/api/export-absence', (req, res) => {
                 .map(d => {
                     const mm = String(month).padStart(2, '0');
                     const dd = String(d.day).padStart(2, '0');
-                    return `${year},${mm},${dd}`;
+                    return d.day;
                 });
             offNgoaiLich = absentDays.join(', ');
         }
