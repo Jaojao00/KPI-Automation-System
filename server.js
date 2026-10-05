@@ -9,7 +9,7 @@ const SUPABASE_KEY = 'sb_publishable_ORCTFMyXVG20T1rpfcFdKA_-yupBNs_';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: '/tmp' });
 
 app.use(cors());
 app.use(express.json());
@@ -586,7 +586,7 @@ app.post('/api/upload-timesheet', upload.single('file'), (req, res) => {
         });
     } catch (error) {
         console.error('Lỗi khi đọc file Timesheet:', error);
-        res.status(500).json({ error: 'Lỗi khi xử lý file Excel' });
+        res.status(400).json({ error: 'Lỗi khi xử lý file Excel: ' + (error.message || error) });
     }
 });
 
@@ -674,7 +674,7 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
         res.json({ message: `Upload Lịch làm việc thành công! (${rawData.length} nhân viên)`, file: req.file.filename });
     } catch (error) {
         console.error('Lỗi khi đọc file Lịch làm việc:', error);
-        res.status(500).json({ error: 'Lỗi khi xử lý file Excel' });
+        res.status(400).json({ error: 'Lỗi khi xử lý file Excel: ' + (error.message || error) });
     }
 });
 
