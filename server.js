@@ -301,9 +301,19 @@ app.post('/api/upload-timesheet', upload.single('file'), (req, res) => {
             const keys = Object.keys(row);
             let ops_id_key = keys.find(k => k.match(/mã(\s)?(số\s)?(ctv|nhân viên|nv)|ops(\s)?id/i));
             const date_key = keys.find(k => k.match(/ngày|date/i));
-            const name_key = keys.find(k => k.match(/họ và tên|tên|name/i));
-            const vendor_key = keys.find(k => k.match(/vendor|đối tác/i));
-            const type_key = keys.find(k => k.match(/loại(\s)?ctv|type/i));
+            const removeAccents = (str) => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const name_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('ten') || cleanK.includes('name');
+                });
+            const vendor_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('vendor') || cleanK.includes('doi tac');
+                });
+            const type_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('loai') || cleanK.includes('rank') || cleanK.includes('type');
+                });
             const in_time_key = keys.find(k => k.match(/giờ vào/i));
             const out_time_key = keys.find(k => k.match(/giờ ra/i));
             const claim_key = keys.find(k => k.match(/claim/i));
@@ -626,15 +636,25 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
                 }
             }
 
-            // Normalize data: skip the header rows, and rename the date keys to "1", "2", "3"
+            // Normalize data: skip the header rows, and rename all columns using the actual header row
             if (headerRowIdx !== -1) {
+                const headerRow = rawDataRaw[headerRowIdx];
+                let fullMapping = {};
+                for (const [oldKey, val] of Object.entries(headerRow)) {
+                    const strVal = String(val).trim();
+                    if (strVal) {
+                        fullMapping[oldKey] = strVal;
+                    } else {
+                        fullMapping[oldKey] = oldKey;
+                    }
+                }
+
                 const actualDataRows = rawDataRaw.slice(headerRowIdx + 1);
                 rawData = actualDataRows.map(row => {
-                    const newRow = { ...row };
-                    // Replace the keys that correspond to dates
-                    for (const [oldKey, dayNum] of Object.entries(dayMapping)) {
-                        newRow[String(dayNum)] = row[oldKey];
-                        delete newRow[oldKey]; // clean up old keys
+                    const newRow = {};
+                    for (const [oldKey, val] of Object.entries(row)) {
+                        const newKey = fullMapping[oldKey] || oldKey;
+                        newRow[newKey] = val;
                     }
                     return newRow;
                 });
@@ -652,10 +672,20 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
             rawData.forEach(row => {
                 const keys = Object.keys(row);
                 const ops_id_key = keys.find(k => k.match(/mã(\s)?(số\s)?(nv|nhân viên|ctv)|id|ops/i));
-                const name_key = keys.find(k => k.match(/họ và tên|tên|name/i));
+                const removeAccents = (str) => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const name_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('ten') || cleanK.includes('name');
+                });
 
-                let vendor_key = keys.find(k => k.match(/vendor|đối tác/i));
-                let type_key = keys.find(k => k.match(/loại|rank/i)); // Match 'loại' or 'Rank'
+                const vendor_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('vendor') || cleanK.includes('doi tac');
+                });
+                const type_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('loai') || cleanK.includes('rank') || cleanK.includes('type');
+                }); // Match 'loại' or 'Rank'
 
                 let ops_id = ops_id_key ? String(row[ops_id_key]).trim() : null;
                 let name = name_key ? String(row[name_key]).trim() : '';
@@ -1043,7 +1073,11 @@ app.get('/api/absence-check', (req, res) => {
                 return val.match(/^OPS\d+$/i);
             });
         }
-        const name_key = keys.find(k => k.match(/họ và tên|tên|name/i));
+        const removeAccents = (str) => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const name_key = keys.find(k => {
+                    const cleanK = removeAccents(k).toLowerCase();
+                    return cleanK.includes('ten') || cleanK.includes('name');
+                });
         const ops_id = ops_id_key ? String(row[ops_id_key]).trim() : null;
         const name = name_key ? String(row[name_key]).trim() : '';
         if (!ops_id || ops_id === 'undefined' || ops_id === '') return;
