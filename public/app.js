@@ -141,17 +141,11 @@ createApp({
                     } else if (val === 'AL' || val === 'PH' || val === 'P') {
                         offDaysList.push(k + ' (AL)');
                     } else if (val && val !== 'UNDEFINED' && val !== 'NULL') {
-                        workDaysList.push(parseInt(k));
+                        workDaysList.push({ day: parseInt(k), shift: val });
                     }
                 });
 
-                // Since we don't have explicit work days in the columns, we assume 1-31 minus off days are work days
-                // Only populate workDaysList up to 31
-                for (let d = 1; d <= 31; d++) {
-                    if (!scheduledOff.has(d) && !cpOff.has(d) && !approvedLeave.has(d)) {
-                        workDaysList.push({ day: d, shift: 'WORKING' });
-                    }
-                }
+
 
                 // Sort for display
                 offDaysList.sort((a, b) => parseInt(a) - parseInt(b));
