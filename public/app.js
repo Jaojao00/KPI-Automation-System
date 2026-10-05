@@ -2,7 +2,7 @@ const { createApp } = Vue;
 
 // Cấu hình Axios để luôn gọi tới Backend đang chạy ở port 3000
 // Điều này giúp tránh lỗi khi bạn mở file HTML bằng Live Server (port 5500)
-axios.defaults.baseURL = 'http://localhost:3000';
+// axios.defaults.baseURL = 'http://localhost:3000';
 
 createApp({
     data() {
