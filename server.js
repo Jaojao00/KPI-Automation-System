@@ -825,7 +825,6 @@ app.get('/api/dashboard', (req, res) => {
     });
 
     // Include data month so frontend can auto-detect
-    const dm = getDataMonth();
     res.json({
         stats: { pass: passCount, fail: failCount, total: validEmployees.length },
         employees: employeesWithKPI,
