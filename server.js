@@ -804,7 +804,16 @@ app.get('/api/dashboard', (req, res) => {
         : db.employees;
 
     // Lọc lại KPIs theo những nhân sự hợp lệ này
-    const validKPIs = db.kpi_results.filter(k => validEmployees.some(e => e.ops_id === k.ops_id));
+        // Auto-calculate KPI if missing
+    const dm = getDataMonth();
+    validEmployees.forEach(emp => {
+        if (!db.kpi_results.find(k => k.ops_id === emp.ops_id && k.month === dm.month)) {
+            db.kpi_results.push(calculateKPI(emp.ops_id, dm.month, dm.year));
+        }
+    });
+    
+    // L?c l?i KPIs theo nh?ng nhn s? h?p l? ny
+    const validKPIs = db.kpi_results.filter(k => k.month === dm.month && validEmployees.some(e => e.ops_id === k.ops_id));
 
     const passCount = validKPIs.filter(r => r.result === 'PASS').length;
     const failCount = validKPIs.filter(r => r.result === 'FAIL').length;
