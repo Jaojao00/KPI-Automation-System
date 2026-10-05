@@ -1339,7 +1339,7 @@ app.post('/api/export-absence', (req, res) => {
                     .forEach(([day, reason]) => {
                         if (!otherReasonGroups[reason]) otherReasonGroups[reason] = [];
                         const dd = String(day).padStart(2, '0');
-                        otherReasonGroups[reason].push(d.day);
+                        otherReasonGroups[reason].push(day);
                     });
                 Object.entries(otherReasonGroups).forEach(([reason, dates]) => {
                     feedbackParts.push(`${reason}: ${dates.join(', ')}`);
