@@ -133,30 +133,17 @@ createApp({
                 let offDaysList = [];
                 let workDaysList = [];
                 
-                const keys = Object.keys(row);
-                const offDaysKey = keys.find(k => k.match(/lịch off/i));
-                const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
-                const cpOffKey = keys.find(k => k.match(/trong cp/i));
-
-                const parseDays = (val) => {
-                    const days = new Set();
-                    if (!val) return days;
-                    const parts = String(val).split(/[,.]+/);
-                    parts.forEach(p => {
-                        const num = parseInt(p.trim());
-                        if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
-                    });
-                    return days;
-                };
-
-                const scheduledOff = parseDays(offDaysKey ? row[offDaysKey] : '');
-                const approvedLeave = parseDays(opsDuyetPhepKey ? row[opsDuyetPhepKey] : '');
-                const cpOff = parseDays(cpOffKey ? row[cpOffKey] : '');
-
-                // Add to offDaysList
-                scheduledOff.forEach(d => offDaysList.push(d));
-                cpOff.forEach(d => { if (!offDaysList.includes(d)) offDaysList.push(d); });
-                approvedLeave.forEach(d => { if (!offDaysList.includes(d)) offDaysList.push(d + ' (AL)'); });
+                const dayKeys = Object.keys(row).filter(k => !isNaN(parseInt(k)) && parseInt(k) >= 1 && parseInt(k) <= 31);
+                dayKeys.forEach(k => {
+                    const val = String(row[k]).trim().toUpperCase();
+                    if (val === 'OFF') {
+                        offDaysList.push(parseInt(k));
+                    } else if (val === 'AL' || val === 'PH' || val === 'P') {
+                        offDaysList.push(k + ' (AL)');
+                    } else if (val && val !== 'UNDEFINED' && val !== 'NULL') {
+                        workDaysList.push(parseInt(k));
+                    }
+                });
 
                 // Since we don't have explicit work days in the columns, we assume 1-31 minus off days are work days
                 // Only populate workDaysList up to 31
@@ -499,7 +486,8 @@ createApp({
                 this.currentTab = 'timesheet';
             } catch (error) {
                 console.error(error);
-                alert('Lỗi khi upload Timesheet');
+                const msg = error.response?.data?.error || 'Lỗi khi upload Timesheet';
+                alert(msg);
             }
         },
         async uploadSchedule(event) {
@@ -518,7 +506,8 @@ createApp({
                 this.currentTab = 'schedule';
             } catch (error) {
                 console.error(error);
-                alert('Lỗi khi upload Lịch làm việc');
+                const msg = error.response?.data?.error || 'Lỗi khi upload Lịch làm việc';
+                alert(msg);
             }
         },
         async uploadTemplate(type, event) {

@@ -169,27 +169,20 @@ function calculateKPI(ops_id, month, year) {
 
     if (scheduleRow) {
         const keys = Object.keys(scheduleRow);
+        const dayKeys = keys.filter(k => !isNaN(parseInt(k)) && parseInt(k) >= 1 && parseInt(k) <= 31);
         
-        // Find columns containing off days and approved leaves
-        const offDaysKey = keys.find(k => k.match(/lịch off/i));
-        const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
-        const cpOffKey = keys.find(k => k.match(/trong cp/i));
+        const scheduledOffDays = new Set();
+        const approvedLeaveDays = new Set();
+        const cpOffDays = new Set(); // Kept for compatibility
 
-        // Helper to parse comma separated days into a Set of numbers
-        const parseDays = (val) => {
-            const days = new Set();
-            if (!val) return days;
-            const parts = String(val).split(/[,.]+/); // Handle comma or dot separators
-            parts.forEach(p => {
-                const num = parseInt(p.trim());
-                if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
-            });
-            return days;
-        };
-
-        const scheduledOffDays = parseDays(offDaysKey ? scheduleRow[offDaysKey] : '');
-        const approvedLeaveDays = parseDays(opsDuyetPhepKey ? scheduleRow[opsDuyetPhepKey] : '');
-        const cpOffDays = parseDays(cpOffKey ? scheduleRow[cpOffKey] : '');
+        dayKeys.forEach(k => {
+            const val = String(scheduleRow[k]).trim().toUpperCase();
+            if (val === 'OFF') {
+                scheduledOffDays.add(parseInt(k));
+            } else if (val === 'AL' || val === 'PH' || val === 'P' || val.includes('PHÉP') || val.includes('PHEP')) {
+                approvedLeaveDays.add(parseInt(k));
+            }
+        });
 
         // Find the maximum date in the overall timesheet data for this month to avoid penalizing future days
         let maxDayInTimesheet = 31;
@@ -744,8 +737,8 @@ app.get('/api/download-template/schedule', (req, res) => {
 
     // Fallback tạo file tự động
     const ws_data = [
-        ['Mã số nhân viên', 'Vendor', 'Họ và tên', 'Giới tính', 'Rank', 'Khu vực', 'Bộ phận', 'Tên Hub/SOC', 'Lịch Off Sắp ban đầu', 'OPS Duyệt Phép', 'Ngày Off Trong CP và Duyệt Phép trong CP'], // Headers
-        ['Ops193039', 'AGR', 'Nguyễn Thanh Bảo Long', 'Nam', 'S-BPO', 'SOUTH', 'SOC', 'SW SOC', '8, 15, 22, 29', '12, 13', '15'] // Example row
+        ['Mã số nhân viên', 'Vendor', 'Họ và tên', 'Giới tính', 'Rank', 'Trạng thái mã', 'Ca làm việc', 'Làm việc ngày spike', 'Làm việc ngày mini spike', ...Array.from({length: 31}, (_, i) => String(i + 1))],
+        ['Ops142850', 'AGR', 'Nguyễn Lê Hoàng Tánh', 'Nam', 'BPO', 'Active', 'Ca 1', 4, 6, 'S3', 'PH', 'OFF', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'OFF', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'OFF', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'OFF', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3', 'S3']
     ];
     const ws = xlsx.utils.aoa_to_sheet(ws_data);
     const wb = xlsx.utils.book_new();
@@ -1447,24 +1440,20 @@ app.get('/api/employee-timesheet/:ops_id', (req, res) => {
 
     if (scheduleRow) {
         const keys = Object.keys(scheduleRow);
-        const offDaysKey = keys.find(k => k.match(/lịch off/i));
-        const opsDuyetPhepKey = keys.find(k => k.match(/duyệt phép/i) && !k.match(/trong cp/i));
-        const cpOffKey = keys.find(k => k.match(/trong cp/i));
+        const dayKeys = keys.filter(k => !isNaN(parseInt(k)) && parseInt(k) >= 1 && parseInt(k) <= 31);
+        
+        const scheduledOffDays = new Set();
+        const approvedLeaveDays = new Set();
+        const cpOffDays = new Set(); // Kept for compatibility
 
-        const parseDays = (val) => {
-            const days = new Set();
-            if (!val) return days;
-            const parts = String(val).split(/[,.]+/);
-            parts.forEach(p => {
-                const num = parseInt(p.trim());
-                if (!isNaN(num) && num >= 1 && num <= 31) days.add(num);
-            });
-            return days;
-        };
-
-        const scheduledOffDays = parseDays(offDaysKey ? scheduleRow[offDaysKey] : '');
-        const approvedLeaveDays = parseDays(opsDuyetPhepKey ? scheduleRow[opsDuyetPhepKey] : '');
-        const cpOffDays = parseDays(cpOffKey ? scheduleRow[cpOffKey] : '');
+        dayKeys.forEach(k => {
+            const val = String(scheduleRow[k]).trim().toUpperCase();
+            if (val === 'OFF') {
+                scheduledOffDays.add(parseInt(k));
+            } else if (val === 'AL' || val === 'PH' || val === 'P' || val.includes('PHÉP') || val.includes('PHEP')) {
+                approvedLeaveDays.add(parseInt(k));
+            }
+        });
 
         // Populate scheduleDays for frontend
         for (let dayNum = 1; dayNum <= 31; dayNum++) {
