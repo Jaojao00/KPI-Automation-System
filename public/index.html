@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR & KPI Management System</title>
     <!-- Vue 3 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Boxicons -->
@@ -48,12 +48,7 @@
                         @click="currentTab = 'absence'; fetchAbsenceData()">
                         <i class='bx bx-calendar-check icon'></i> Kiểm Tra Ngày Nghỉ
                     </a>
-                    <a href="#" :class="{active: currentTab === 'complaints'}" @click="currentTab = 'complaints'">
-                        <i class='bx bx-git-pull-request icon'></i> Đối soát (Ops)
-                    </a>
-                    <a href="#" :class="{active: currentTab === 'vendor'}" @click="currentTab = 'vendor'">
-                        <i class='bx bx-check-shield icon'></i> Vendor Approve
-                    </a>
+                    
                     <a href="#" :class="{active: currentTab === 'import'}" @click="currentTab = 'import'">
                         <i class='bx bx-cloud-upload icon'></i> Automation Import
                     </a>
