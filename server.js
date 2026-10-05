@@ -642,7 +642,10 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
                 rawData = rawDataRaw; // Fallback
             }
 
-            db.scheduleHeaders = Object.keys(rawData[0] || {});
+            let allKeys = Object.keys(rawData[0] || {});
+            let numKeys = allKeys.filter(k => !isNaN(parseInt(k)) && String(parseInt(k)) === k).map(Number).sort((a,b) => a-b).map(String);
+            let strKeys = allKeys.filter(k => isNaN(parseInt(k)) || String(parseInt(k)) !== k);
+            db.scheduleHeaders = [...strKeys, ...numKeys];
             db.schedule = rawData;
 
             // Cập nhật thông tin nhân sự từ Lịch làm việc
