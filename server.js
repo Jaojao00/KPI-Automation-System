@@ -3,6 +3,10 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const xlsx = require('xlsx');
+const { createClient } = require('@supabase/supabase-js');
+const SUPABASE_URL = 'https://nxnctpaagbmwtuncspvo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ORCTFMyXVG20T1rpfcFdKA_-yupBNs_';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -12,7 +16,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- DATABASE SIMULATION ---
-const db = {
+let db = {
     employees: [],
     attendance: [],
     timesheet: [],
