@@ -599,10 +599,50 @@ app.post('/api/upload-schedule', upload.single('file'), (req, res) => {
         const worksheet = workbook.Sheets[sheetName];
 
         // Use sheet_to_json to get raw arrays of objects
-        const rawData = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+        const rawDataRaw = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+        
+        let rawData = [];
+        if (rawDataRaw.length > 0) {
+            // Find the row that contains the day numbers 1 to 31
+            let dayMapping = {};
+            let headerRowIdx = -1;
+            for (let i = 0; i < Math.min(10, rawDataRaw.length); i++) {
+                const row = rawDataRaw[i];
+                let foundDays = 0;
+                const tempMapping = {};
+                for (const [key, val] of Object.entries(row)) {
+                    const strVal = String(val).trim();
+                    const num = parseInt(strVal);
+                    if (!isNaN(num) && num >= 1 && num <= 31 && strVal === String(num)) {
+                        tempMapping[key] = num;
+                        foundDays++;
+                    }
+                }
+                // If a row has at least 28 numeric values (1-31), it's the date header row
+                if (foundDays >= 28) {
+                    dayMapping = tempMapping;
+                    headerRowIdx = i;
+                    break;
+                }
+            }
 
-        if (rawData.length > 0) {
-            db.scheduleHeaders = Object.keys(rawData[0]);
+            // Normalize data: skip the header rows, and rename the date keys to "1", "2", "3"
+            if (headerRowIdx !== -1) {
+                const actualDataRows = rawDataRaw.slice(headerRowIdx + 1);
+                rawData = actualDataRows.map(row => {
+                    const newRow = { ...row };
+                    // Replace the keys that correspond to dates
+                    for (const [oldKey, dayNum] of Object.entries(dayMapping)) {
+                        newRow[String(dayNum)] = row[oldKey];
+                        delete newRow[oldKey]; // clean up old keys
+                    }
+                    return newRow;
+                });
+            } else {
+                rawData = rawDataRaw; // Fallback
+            }
+
+            db.scheduleHeaders = Object.keys(rawData[0] || {});
             db.schedule = rawData;
 
             // Cập nhật thông tin nhân sự từ Lịch làm việc
